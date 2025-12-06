@@ -61,13 +61,34 @@ ax.set_title("Restaurants on Map")
 st.pyplot(fig)
 
 
-#district Filter
+
+# Sidebar filters
 district_list = sorted(districts["NEIGHBORHENAME"].unique())
 selected_district = st.sidebar.selectbox("Select a district", district_list)
 
+# Category filter
+category_list = sorted(set([c for c in joined["categories"].dropna().unique() if c]))
+selected_category = st.sidebar.selectbox("Select a category", ["All"] + category_list)
+
+# Price filter
+price_list = sorted(set([p for p in joined["price"].dropna().unique() if p]))
+selected_price = st.sidebar.selectbox("Select a price", ["All"] + price_list)
+
+# Rating filter (convert to float, ignore blanks)
+joined["rating_num"] = pd.to_numeric(joined["rating"], errors="coerce")
+min_rating = float(joined["rating_num"].min()) if not joined["rating_num"].isnull().all() else 0.0
+max_rating = float(joined["rating_num"].max()) if not joined["rating_num"].isnull().all() else 10.0
+selected_rating = st.sidebar.slider("Minimum rating", min_value=min_rating, max_value=max_rating, value=min_rating, step=0.1)
+
 st.subheader(f"Restaurants in {selected_district}")
 
+# Apply all filters
 filtered_rest = joined[joined["NEIGHBORHENAME"] == selected_district]
+if selected_category != "All":
+    filtered_rest = filtered_rest[filtered_rest["categories"] == selected_category]
+if selected_price != "All":
+    filtered_rest = filtered_rest[filtered_rest["price"] == selected_price]
+filtered_rest = filtered_rest[filtered_rest["rating_num"] >= selected_rating]
 
 # to Use Streamlit native map
 if not filtered_rest.empty:
@@ -92,6 +113,6 @@ if not filtered_rest.empty:
     else:
         st.map(df_map[["latitude", "longitude"]])
 else:
-    st.write("No restaurants found in this district.")
+    st.write("No restaurants found with the selected filters.")
 
-st.write(f"Total restaurants in this district: **{len(filtered_rest)}**")
+st.write(f"Total restaurants with selected filters: **{len(filtered_rest)}**")
